@@ -1,0 +1,269 @@
+---
+title: 'Presence'
+description: 'Share state between users with Realtime Presence.'
+subtitle: 'Share state between users with Realtime Presence.'
+---
+
+Use Realtime Presence to track state between multiple users.
+
+## Usage
+
+You can use the Zuvo client libraries to track Presence state between users.
+
+### How Presence works
+
+Presence lets each connected client publish a small piece of state—called a “presence payload”—to a shared channel. Zuvo stores each client’s payload under a unique presence key and keeps a merged view of all connected clients.
+
+When any client subscribes, disconnects, or updates their presence payload, Zuvo triggers one of three events:
+
+- **`sync`** — the full presence state has been updated
+- **`join`** — a new client has started tracking presence
+- **`leave`** — a client has stopped tracking presence
+
+<Admonition type="caution" title="Presence is not designed for high-frequency updates">
+
+Presence syncs state through the server and notifies **all** subscribers on every change. Calling `track()` rapidly — for example on every mouse move to share cursor positions — will flood the channel and cause performance problems.
+
+For high-frequency or fire-and-forget updates, use [Broadcast](/guides/realtime/broadcast) instead. Presence is best suited for slow-changing state such as online/offline status, active document, or current page.
+
+</Admonition>
+
+<Admonition type="note" title="Sync event behavior">
+
+During a `sync` event, you may receive `join` and `leave` events simultaneously, even though no users are joining or leaving. This is expected behavior—Presence reconciles its local state with the server state, which can trigger these events as part of the synchronization process. This reflects state reconciliation, not real user movement.
+
+</Admonition>
+
+The complete presence state returned by `presenceState()` looks like this:
+
+
+
+```json
+{
+  "client_key_1": [{ "userId": 1, "typing": false }],
+  "client_key_2": [{ "userId": 2, "typing": true }]
+}
+```
+
+
+
+### Initialize the client
+
+Get the Project URL and key from [the project's **Connect** dialog](/dashboard/project/_?showConnect=true).
+
+<Admonition type="deprecation" title="Changes to API keys">
+
+Zuvo is deprecating the `anon` and `service_role` keys by the end of 2026. Use the publishable (`sb_publishable_xxx`) and secret (`sb_secret_xxx`) keys instead. For the reasoning behind the change, see [the announcement on GitHub](https://github.com/orgs/supabase/discussions/29260).
+
+In most cases you can get keys from your project's [**Connect** dialog](/dashboard/project/\_?showConnect=true&connectTab=tab&framework=framework). For every way to retrieve a key, including the CLI and the Management API, refer to [Find your keys](/guides/getting-started/api-keys#find-your-keys).
+
+</Admonition>
+
+
+<Tabs
+  scrollable
+  size="small"
+  type="underlined"
+  defaultActiveId="js"
+  queryGroup="language"
+>
+<TabPanel id="js" label="JavaScript">
+
+
+
+```js
+import { createClient } from '@supabase/supabase-js'
+
+const SUPABASE_URL = 'https://<project>.supabase.co'
+const SUPABASE_KEY = '<sb_publishable_... key>'
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+```
+
+
+
+</TabPanel>
+
+
+
+
+
+</Tabs>
+
+### Sync and track state
+
+<Tabs
+  scrollable
+  size="small"
+  type="underlined"
+  defaultActiveId="js"
+  queryGroup="language"
+>
+<TabPanel id="js" label="JavaScript">
+
+Listen to the `sync`, `join`, and `leave` events triggered whenever any client joins or leaves the channel or changes their slice of state:
+
+
+
+```js
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient('your_project_url', 'your_supabase_api_key')
+
+// ---cut---
+const roomOne = supabase.channel('room_01')
+
+roomOne
+  .on('presence', { event: 'sync' }, () => {
+    const newState = roomOne.presenceState()
+    console.log('sync', newState)
+  })
+  .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+    console.log('join', key, newPresences)
+  })
+  .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+    console.log('leave', key, leftPresences)
+  })
+  .subscribe()
+```
+
+
+
+</TabPanel>
+
+
+
+
+
+</Tabs>
+
+### Sending state
+
+You can send state to all subscribers using `track()`:
+
+<Tabs
+  scrollable
+  size="small"
+  type="underlined"
+  defaultActiveId="js"
+  queryGroup="language"
+>
+<TabPanel id="js" label="JavaScript">
+
+
+
+
+```js
+import { createClient } from '@supabase/supabase-js'
+const supabase = createClient('your_project_url', 'your_supabase_api_key')
+
+// ---cut---
+const roomOne = supabase.channel('room_01')
+
+const userStatus = {
+  user: 'user-1',
+  online_at: new Date().toISOString(),
+}
+
+roomOne.subscribe(async (status) => {
+  if (status !== 'SUBSCRIBED') { return }
+
+  const presenceTrackStatus = await roomOne.track(userStatus)
+  console.log(presenceTrackStatus)
+})
+```
+
+
+
+</TabPanel>
+
+
+
+
+
+</Tabs>
+
+A client will receive state from any other client that is subscribed to the same topic (in this case `room_01`). It will also automatically trigger its own `sync` and `join` event handlers.
+
+### Stop tracking
+
+You can stop tracking presence using the `untrack()` method. This will trigger the `sync` and `leave` event handlers.
+
+<Tabs
+  scrollable
+  size="small"
+  type="underlined"
+  defaultActiveId="js"
+  queryGroup="language"
+>
+<TabPanel id="js" label="JavaScript">
+
+
+
+```js
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient('your_project_url', 'your_supabase_api_key')
+const roomOne = supabase.channel('room_01')
+
+// ---cut---
+const untrackPresence = async () => {
+  const presenceUntrackStatus = await roomOne.untrack()
+  console.log(presenceUntrackStatus)
+}
+
+untrackPresence()
+```
+
+
+
+</TabPanel>
+
+
+
+
+
+</Tabs>
+
+## Presence options
+
+You can pass configuration options while initializing the Zuvo Client.
+
+### Presence key
+
+By default, Presence will generate a unique `UUIDv1` key on the server to track a client channel's state. If you prefer, you can provide a custom key when creating the channel. This key should be unique among clients.
+
+<Tabs
+  scrollable
+  size="small"
+  type="underlined"
+  defaultActiveId="js"
+  queryGroup="language"
+>
+<TabPanel id="js" label="JavaScript">
+
+
+
+```js
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient('SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY')
+
+const channelC = supabase.channel('test', {
+  config: {
+    presence: {
+      key: 'userId-123',
+    },
+  },
+})
+```
+
+
+
+</TabPanel>
+
+
+
+
+
+</Tabs>

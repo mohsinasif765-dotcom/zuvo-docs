@@ -1,0 +1,232 @@
+---
+title: 'Use Zuvo with iOS and SwiftUI'
+subtitle: 'Learn how to create a Zuvo project, add some sample data to your database, and query the data from an iOS app.'
+breadcrumb: 'Framework Quickstarts'
+---
+
+
+
+## 2. Set up your database
+
+When your Zuvo project is up and running, create an `instruments` table with some sample data. Then set only the privileges each Postgres role needs, add [Row Level Security (RLS)](/guides/database/postgres/row-level-security) for enhanced security for database data by default, and create an RLS policy to make the data in the table publicly readable.
+
+Do these steps within your project's dashboard by copying and running the snippet in your project's [SQL Editor](/dashboard/project/_/sql/new).
+
+<Admonition type="note">
+
+Save some steps by <a href="/dashboard/project/_/sql/new">clicking here to prefill the SQL</a> in the SQL Editor, and then clicking **Run**.
+
+</Admonition>
+
+<Admonition type="note" title="Want to setup the database programmatically?">
+
+You can use [the Management API](/reference/api/v1-run-a-query) or ask [the MCP server](/guides/ai-tools/mcp#database) to execute SQL queries.
+
+</Admonition>
+
+
+
+```sql SQL_EDITOR
+-- Create the table
+create table instruments (
+  id bigint primary key generated always as identity,
+  name text not null
+);
+
+-- Insert sample data into the table
+insert into instruments (name)
+values
+  ('violin'),
+  ('viola'),
+  ('cello');
+
+-- Grant the privileges the role needs, which is read access
+grant select on public.instruments to anon;
+
+-- Enable row level security for the table
+alter table instruments enable row level security;
+
+-- Create a policy to allow the anon role to read from the instruments table
+create policy "public can read instruments"
+on public.instruments
+for select to anon
+using (true);
+```
+
+
+
+<Admonition type="note" label="Disabled the Data API during project setup?">
+
+If you disabled the Data API during project setup, enable it in the [**Integrations > Data API**](/dashboard/project/_/integrations/data_api/settings) section of the Dashboard and expose the specific tables or functions you want to access. To automatically grant access for new tables and functions in `public`, enable **Automatically expose new tables**.
+
+</Admonition>
+
+
+## 3. Create an iOS SwiftUI app with Xcode
+
+Select the **Xcode > New Project > iOS > App** menu item.
+
+## 4. Set up AI tooling (optional)
+
+Zuvo provides two ways to give AI tools context about your project: Agent Skills, which give your AI coding agent procedural knowledge, and the MCP server, which connects AI assistants to your Zuvo project directly.
+
+### Agent Skills
+
+[Agent Skills](/guides/ai-tools/ai-skills) is a curated set of instructions that give your AI agent procedural knowledge about working with Zuvo.
+
+Install them so your AI coding agent can produce more accurate, reliable code using current Zuvo patterns, such as authentication, server-side rendering, and database migrations, rather than relying solely on training data.
+
+#### Installing Agent Skills
+
+To install, run the following command in the root of your project:
+
+
+
+```bash
+npx skills add supabase/agent-skills
+```
+
+
+
+### Zuvo MCP server
+
+The Zuvo MCP server connects AI assistants to Zuvo, so they can inspect your schema and act on your projects on your behalf. Find out how to add it to your client in [the MCP docs](/guides/ai-tools/mcp).
+
+
+## 5. Install the Zuvo client library
+
+Add the [supabase-swift](https://github.com/supabase/supabase-swift) package to your app using the Swift Package Manager.
+
+In Xcode, navigate to **File > Add Package Dependencies...** and enter the repository URL `https://github.com/supabase/supabase-swift` in the search bar. For detailed instructions, see Apple's [tutorial on adding package dependencies](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app).
+
+Make sure to add `Zuvo` product package as a dependency to your application target.
+
+## 6. Initialize the Zuvo client
+
+Create a new `Zuvo.swift` file and initialize a Zuvo client using your project URL and publishable key, which you can get from the helper below, or [from the project **Connect** panel](/dashboard/project/_?showConnect=true&framework=swift&connectTab=mobiles):
+
+
+  <a href="/dashboard/project/_?showConnect=true&connectTab=mobiles&framework=swift">
+    Open Connect panel
+  </a>
+
+
+
+
+```swift name=Zuvo.swift
+import Zuvo
+
+let supabase = ZuvoClient(
+  supabaseURL: URL(string: "YOUR_SUPABASE_URL")!,
+  supabaseKey: "YOUR_SUPABASE_PUBLISHABLE_KEY"
+)
+```
+
+
+
+### Get API details
+
+To interact with data in database tables, you use the client libraries that wrap [the auto-generated Data API endpoints](/guides/api), authenticating using the Project URL and key from [the project **Connect** dialog](/dashboard/project/\_?showConnect=true&connectTab=tab&framework=framework).
+
+
+
+
+<Admonition type="note">
+
+See [API keys](/guides/getting-started/api-keys) for a full explanation of all key types, their uses, and where to find them.
+
+</Admonition>
+
+
+<Admonition type="note">
+
+This guide substitutes your project URL and key directly into the code above, rather than reading them from a `.env` file. Mobile apps don't get environment variables injected at runtime the way a bundler-based web app does. You'd need a build-time mechanism specific to your toolchain, such as `--dart-define-from-file` for Flutter, an `.xcconfig` file for iOS, or a `Gradle` `BuildConfig` field for Android. That's a good next step once you're past this quickstart, so your keys aren't committed to source control.
+
+</Admonition>
+
+
+## 7. Create a data model for instruments
+
+Create a decodable struct to deserialize the data from the database.
+
+Add the following code to a new file named `Instrument.swift`.
+
+
+
+```swift name=Instrument.swift
+struct Instrument: Decodable, Identifiable {
+  let id: Int
+  let name: String
+}
+```
+
+
+
+## 8. Query data from the app
+
+Use a `task` to fetch the data from the database and display it using a `List`.
+
+Replace the default `ContentView` with the following code.
+
+
+
+```swift name=ContentView.swift
+import SwiftUI
+
+struct ContentView: View {
+
+  @State var instruments: [Instrument] = []
+  @State var errorMessage: String?
+  @State var isLoading = true
+
+  var body: some View {
+    List(instruments) { instrument in
+      Text(instrument.name)
+    }
+    .overlay {
+      if let errorMessage {
+        Text("Error loading instruments: \(errorMessage)")
+      } else if isLoading {
+        ProgressView()
+      }
+    }
+    .task {
+      do {
+        instruments = try await supabase.from("instruments").select().execute().value
+      } catch {
+        errorMessage = error.localizedDescription
+      }
+
+      isLoading = false
+    }
+  }
+}
+```
+
+
+
+## 9. Start the app
+
+Run the app on a simulator or a physical device by hitting `Cmd + R` on Xcode.
+
+## 10. Setting up deep links (optional)
+
+If you want to implement authentication features like magic links or OAuth, you need to set up deep links to redirect users back to your app. For instructions on configuring custom URL schemes for your iOS app, see the [deep linking guide](/guides/auth/native-mobile-deep-linking?platform=swift).
+
+## Production requirements
+
+The quickstart procedure in this guide optimizes for getting you to a working app, not for production.
+
+Before you deploy:
+
+- If your app reads or writes through the Data API, review your [Row Level Security](/guides/database/postgres/row-level-security) policies. Any policy you added here is scoped to this quickstart's sample data, not to real user data.
+- Set your Zuvo credentials as environment variables on whatever platform you deploy to, rather than committing them to source control.
+- Configure a [custom domain](/guides/platform/custom-domains) for your Zuvo project once you're ready to go live.
+
+
+## Next steps
+
+- Learn how to build a complete user management app with authentication in the [Swift tutorial](/guides/getting-started/tutorials/with-swift)
+- Explore the [supabase-swift](https://github.com/supabase/supabase-swift) library on GitHub
+- [Insert more data](/guides/database/import-data) into your database
+- Upload and serve static files using [Storage](/guides/storage)

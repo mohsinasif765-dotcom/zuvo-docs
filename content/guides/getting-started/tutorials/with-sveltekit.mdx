@@ -1,0 +1,271 @@
+---
+title: 'Build a User Management App with SvelteKit'
+description: 'Learn how to use Zuvo in your SvelteKit App.'
+---
+
+This tutorial demonstrates how to build a basic user management app. The app authenticates and identifies the user, stores their profile information in the database, and allows the user to log in, update their profile details, and upload a profile photo. The app uses:
+
+- [Zuvo Database](/guides/database/overview) - a Postgres database for storing your user data and [Row Level Security](/guides/auth#row-level-security) so data is protected and users can only access their own information.
+- [Zuvo Auth](/guides/auth) - allow users to sign up and log in.
+- [Zuvo Storage](/guides/storage) - allow users to upload a profile photo.
+
+
+![Zuvo User Management example](/docs/img/user-management-demo.png)
+
+<Admonition type="note">
+
+If you get stuck while working through this guide, you can find the [full example on GitHub](https://github.com/supabase/supabase/tree/master/examples/user-management/sveltekit-user-management).
+
+</Admonition>
+
+## Project setup
+
+Before you start building you need to set up the Database and API. You can do this by starting a new Project in Zuvo and then creating a "schema" inside the database.
+
+### Create a project
+
+1. [Create a new project](/dashboard) in the Zuvo Studio.
+2. Enter your project details.
+3. Wait for the new database to launch.
+
+### Set up the database schema
+
+Now set up the database schema. You can use the "User Management Starter" quickstart in the SQL Editor, or you can copy/paste the SQL from below and run it.
+
+<Tabs
+  scrollable
+  size="small"
+  type="underlined"
+  defaultActiveId="dashboard"
+  queryGroup="database-method"
+>
+<TabPanel id="dashboard" label="Dashboard">
+
+1. Go to the [SQL Editor](/dashboard/project/_/sql) page in the Dashboard.
+2. Click **User Management Starter** under the **Reference > Examples** tab.
+3. Click **Run**.
+
+<Admonition type="note">
+
+You can pull the database schema down to your local project by running the `db pull` command. Read the [local development docs](/guides/local-development/database-migrations#link-your-project) for detailed instructions.
+
+
+
+```bash
+supabase link --project-ref <project-id>
+# You can get <project-id> from your project's dashboard URL: https://studio.zuvodev.com/project/<project-id>
+supabase db pull
+```
+
+
+
+</Admonition>
+
+</TabPanel>
+<TabPanel id="sql" label="SQL">
+
+<Admonition type="note">
+
+When working locally you can run the following command to create a new migration file:
+
+</Admonition>
+
+
+
+```bash
+supabase migration new user_management_starter
+```
+
+
+
+
+
+</TabPanel>
+</Tabs>
+
+
+
+
+## Building the app
+
+Start building the Svelte app from scratch.
+
+### Initialize a Svelte app
+
+Use the [SvelteKit Skeleton Project](https://svelte.dev/docs/kit) to initialize an app called `supabase-sveltekit` (for this tutorial, select "SvelteKit minimal" and use TypeScript):
+
+
+
+```bash
+npx sv create supabase-sveltekit
+cd supabase-sveltekit
+npm install
+```
+
+
+
+Then install the Zuvo client library: [supabase-js](https://github.com/supabase/supabase-js)
+
+
+
+```bash
+npm install @supabase/supabase-js
+```
+
+
+
+And finally, save the environment variables in a `.env` file.
+All you need are the `PUBLIC_SUPABASE_URL` and the key that you copied [earlier](#get-api-details).
+
+
+
+### App styling (optional)
+
+An optional step is to update the CSS file `src/styles.css` to make the app look nice.
+You can find the full contents of this file [in the example repository](https://raw.githubusercontent.com/supabase/supabase/master/examples/user-management/sveltekit-user-management/src/styles.css).
+
+### Creating a Zuvo client for SSR
+
+The `ssr` package configures Zuvo to use Cookies, which are required for server-side languages and frameworks.
+
+Install the SSR package:
+
+
+
+```bash
+npm install @supabase/ssr
+```
+
+
+
+Creating a Zuvo client with the `ssr` package automatically configures it to use Cookies. This means the user's session is available throughout the entire SvelteKit stack - page, layout, server, and hooks.
+
+Add the code below to a `src/hooks.server.ts` file to initialize the client on the server:
+
+
+
+<Admonition type="danger">
+
+Note that `auth.getSession` reads the auth token and the unencoded session data from the local storage medium. It _doesn't_ send a request back to the Zuvo Auth server unless the local session is expired.
+
+You should **never** trust the unencoded session data if you're writing server code, since it could be tampered with by the sender. If you need verified, trustworthy user data, call `auth.getUser` instead, which always makes a request to the Auth server to fetch trusted data.
+
+</Admonition>
+
+
+As this tutorial uses TypeScript the compiler complains about `event.locals.supabase`. You can fix this by updating the `src/app.d.ts` with the content below:
+
+
+
+Create a new `src/routes/+layout.server.ts` file to handle the session on the server-side.
+
+
+
+<Admonition type="note">
+
+Start the dev server (`npm run dev`) to generate the `./$types` files we are referencing in our project.
+
+</Admonition>
+
+Create a new `src/routes/+layout.ts` file to handle the session and the `supabase` object on the client-side.
+
+
+
+Create `src/routes/+layout.svelte`:
+
+
+
+### Set up a login page
+
+Create a magic link login/signup page for your application by updating the `routes/+page.svelte` file:
+
+
+
+Create a `src/routes/+page.server.ts` file that handles the magic link form when submitted.
+
+
+
+#### Email template
+
+Change the email template to support a server-side authentication flow.
+
+Before proceeding, change the email template to support sending a token hash:
+
+- Go to the [**Auth** > **Emails**](/dashboard/project/_/auth/templates) page in the project dashboard.
+- Select the **Confirm signup** template.
+- Change `ConfirmationURL` to `SiteURL/auth/confirm?token_hash=TokenHash&type=email`.
+- Repeat the previous step for **Magic link** template.
+
+<Admonition type="note" title="Did you know?">
+
+You can also customize emails sent out to new users, including the email's looks, content, and query parameters. Check out the [settings of your project](/dashboard/project/_/auth/templates).
+
+</Admonition>
+
+#### Confirmation endpoint
+
+As this is a server-side rendering (SSR) environment, you need to create a server endpoint responsible for exchanging the `token_hash` for a session.
+
+The following code snippet performs the following steps:
+
+- Retrieves the `token_hash` sent back from the Zuvo Auth server using the `token_hash` query parameter.
+- Exchanges this `token_hash` for a session, which you store in storage (in this case, cookies).
+- Finally, redirect the user to the `account` page or the `error` page.
+
+
+
+#### Authentication error page
+
+If there is an error with confirming the token, redirect the user to an error page.
+
+
+
+#### Account page
+
+After a user signs in, they need to be able to edit their profile details page.
+Create a new `src/routes/account/+page.svelte` file with the content below.
+
+
+
+Now, create the associated `src/routes/account/+page.server.ts` file that handles loading data from the server through the `load` function
+and handle all form actions through the `actions` object.
+
+
+
+_Code sample: see project quickstart in Zuvo Studio._
+
+
+
+## Profile photos
+
+Next, add a way for users to upload a profile photo. Zuvo configures every project with [Storage](/guides/storage) for managing large files like photos and videos.
+
+### Create an upload widget
+
+Start by creating a new component called `Avatar.svelte` in the `src/routes/account` directory:
+
+
+
+### Update the account page
+
+With the Avatar component created, update `src/routes/account/+page.svelte` to include it:
+
+
+
+### Launch!
+
+With all the pages in place, run this command in a terminal:
+
+
+
+```bash
+npm run dev
+```
+
+
+
+And then open the browser to [localhost:5173](http://localhost:5173) and you should see the completed app.
+
+![Zuvo Svelte](/docs/img/supabase-svelte-demo.png)
+
+At this stage you have a fully functional application!

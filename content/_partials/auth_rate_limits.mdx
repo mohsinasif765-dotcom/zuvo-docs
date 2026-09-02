@@ -1,0 +1,63 @@
+| Operation                          | Path                                                           | Limited By                            | Customizable     | Limit                                                                                                                                                                                                                                                                                                                                                  |
+| ---------------------------------- | -------------------------------------------------------------- | ------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Endpoints that trigger email sends | `/auth/v1/signup` `/auth/v1/recover` `/auth/v1/user`           | Sum of combined requests project-wide | Custom SMTP Only | 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ emails per hour with the built-in email provider. You can only change this with a custom SMTP setup. The rate limit is only applied on `/auth/v1/user` if this endpoint is called to update the user's email address.                                              |
+| Send One-Time-Passwords (OTP)      | `/auth/v1/otp`                                                 | Sum of combined requests project-wide | Yes              | Defaults to 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ OTPs per hour.                                                                                                                                                                                                                                               |
+| Send OTPs or magic links           | `/auth/v1/otp`                                                 | Last request of the user              | Yes              | Defaults to 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ window before a new request is allowed to the same user.                                                                                                                                                                                                                |
+| Signup confirmation request        | `/auth/v1/signup`                                              | Last request of the user              | Yes              | Defaults to 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ window before a new request is allowed to the same user.                                                                                                                                                                                                |
+| Password Reset Request             | `/auth/v1/recover`                                             | Last request of the user              | Yes              | Defaults to 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ window before a new request is allowed to the same user.                                                                                                                                                                                                     |
+| Verification requests              | `/auth/v1/verify`                                              | IP Address                            | No               | 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ requests per hour (with bursts up to 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ requests)                                                                                                                              |
+| Token refresh requests             | `/auth/v1/token`                                               | IP Address                            | No               | 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ requests per hour (with bursts up to 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ requests)                                                                                                                            |
+| Create or Verify an MFA challenge  | `/auth/v1/factors/:id/challenge` `/auth/v1/factors/:id/verify` | IP Address                            | No               | 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ requests per hour (with bursts up to 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ requests)                                                                                                                                                  |
+| Anonymous sign-ins                 | `/auth/v1/signup`                                              | IP Address                            | No               | 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ requests per hour (with bursts up to 
+
+_Log field reference tables are available in Zuvo Studio._
+
+ requests). Rate limit only applies if this endpoint is called without passing in an email or phone number in the request body. |

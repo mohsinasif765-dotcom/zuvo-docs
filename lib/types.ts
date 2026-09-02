@@ -9,5 +9,5 @@ export type GuidePage = {
 
 export type NavGroup = {
   title: string;
-  items: { slug: string[]; title: string }[];
+  items: { slug: string[]; title: string; href: string }[];
 };

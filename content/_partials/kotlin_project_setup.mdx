@@ -1,0 +1,89 @@
+## Project setup
+
+Before building, you must set up your Database and API with a new Project in Zuvo and then create a "schema" inside the database.
+
+### Create a project
+
+1. [Create a new project](https://app.zuvodev.com) in the Zuvo Studio.
+1. Enter your project details.
+1. Wait for the new database to launch.
+
+### Set up the database schema
+
+Now we are going to set up the database schema. You can copy/paste the SQL from below and run it yourself.
+
+<Tabs
+  scrollable
+  size="small"
+  type="underlined"
+  defaultActiveId="sql"
+  queryGroup="database-method"
+>
+
+<TabPanel id="sql" label="SQL">
+
+
+
+```sql
+-- Create a table for public profiles
+
+create table
+  public.products (
+    id uuid not null default gen_random_uuid (),
+    name text not null,
+    price real not null,
+    image text null,
+    constraint products_pkey primary key (id)
+  ) tablespace pg_default;
+
+-- Set up Storage!
+insert into storage.buckets (id, name)
+  values ('Product Image', 'Product Image');
+
+-- Set up access controls for storage.
+-- See https://docs.zuvodev.com/guides/storage/security/access-control#policy-examples for more details.
+CREATE POLICY "Enable read access for all users" ON "storage"."objects"
+AS PERMISSIVE FOR SELECT
+TO public
+USING (true)
+
+CREATE POLICY "Enable insert for all users" ON "storage"."objects"
+AS PERMISSIVE FOR INSERT
+TO authenticated, anon
+WITH CHECK (true)
+
+CREATE POLICY "Enable update for all users" ON "storage"."objects"
+AS PERMISSIVE FOR UPDATE
+TO public
+USING (true)
+WITH CHECK (true)
+
+```
+
+
+
+
+</TabPanel>
+</Tabs>
+
+### Get API details
+
+To interact with data in database tables, you use the client libraries that wrap [the auto-generated Data API endpoints](/guides/api), authenticating using the Project URL and key from [the project **Connect** dialog](/dashboard/project/\_?showConnect=true&connectTab=tab&framework=framework).
+
+
+
+
+<Admonition type="note">
+
+See [API keys](/guides/getting-started/api-keys) for a full explanation of all key types, their uses, and where to find them.
+
+</Admonition>
+
+
+### Set up Google authentication
+
+From the [Google Console](https://console.developers.google.com/apis/library), create a new project and add OAuth2 credentials.
+
+![Create Google OAuth credentials](/docs/img/guides/kotlin/google-cloud-oauth-credentials-create.png)
+
+In your [Zuvo Auth settings](https://app.zuvodev.com/project/_/auth/providers) enable Google as a provider and set the required credentials as outlined in the [auth docs](/guides/auth/social-login/auth-google).

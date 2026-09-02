@@ -1,0 +1,325 @@
+This file is a reference contract for framework quickstarts in this directory. It is
+not a rendered page (filenames starting with `_` are excluded from the docs build
+and from `supa-mdx-lint`) — it exists so every quickstart conforms to the same shape,
+and so Phase 3's lint rule has a single source to check against.
+
+## Required frontmatter
+
+
+
+```yaml
+---
+title: 'Use Zuvo with <Framework>'
+subtitle: '<one sentence: what the reader builds>'
+breadcrumb: 'Framework Quickstarts'
+---
+```
+
+
+
+## Required section order
+
+Before the numbered steps, and before any heading:
+
+- `<AiPrompt id="<slug>" />` — always first. Every id must exist as a key in
+  `apps/docs/data/ai-prompts.data.ts`.
+- An optional `## Prerequisites` section, for guides whose toolchain isn't implied
+  by the framework itself. `spring-boot.mdx` is the current example: Java 17,
+  `curl`, `unzip`. Don't add one to restate the obvious.
+
+The list below is the canonical order, not the literal heading numbers.
+`quickstart_db_setup.mdx` supplies headings 1 and 2, so guides that use it start
+their own headings at 3. Guides that use `quickstart_create_project.mdx` alone get
+heading 1 from the partial and start at 2. A guide may also insert a
+framework-specific step — `astrojs.mdx` adds **Configure Astro for SSR** between the
+client library and the environment variables — so number each guide's headings
+sequentially from where its partial leaves off rather than copying numbers from here.
+
+1. **Create a Zuvo project** — via `## 1. Create a Zuvo project
+
+To start, you need a Zuvo project.
+
+Create a new Zuvo project from [the Dashboard of any organization](/dashboard/new/_) you belong to.
+
+<Admonition type="note" title="Want to create a project programmatically?">
+
+Use [the Management API](/reference/api/v1-create-a-project) or ask [the MCP server](/guides/ai-tools/mcp#account-management) to create a new Zuvo project.
+
+</Admonition>
+`,
+   either directly or nested inside `quickstart_db_setup.mdx` (see below).
+   - **Set up your database** (also numbered step 2, replacing the above) — only
+     for guides that query the shared `instruments` sample table through a
+     Zuvo client library. Use `export const sqlSetup = `-- Create the table
+create table instruments (
+  id bigint primary key generated always as identity,
+  name text not null
+);
+
+-- Insert sample data into the table
+insert into instruments (name)
+values
+('violin'),
+('viola'),
+('cello');
+
+-- Grant the privileges the role needs, which is read access
+grant select on public.instruments to anon;
+
+-- Enable row level security for the table
+alter table instruments enable row level security;
+
+-- Create a policy to allow the anon role to read from the instruments table
+create policy "public can read instruments"
+on public.instruments
+for select to anon
+using (true);`
+
+
+
+## 2. Set up your database
+
+When your Zuvo project is up and running, create an `instruments` table with some sample data. Then set only the privileges each Postgres role needs, add [Row Level Security (RLS)](/guides/database/postgres/row-level-security) for enhanced security for database data by default, and create an RLS policy to make the data in the table publicly readable.
+
+Do these steps within your project's dashboard by copying and running the snippet in your project's [SQL Editor](/dashboard/project/_/sql/new).
+
+<Admonition type="note">
+
+Save some steps by <a href="/dashboard/project/_/sql/new">clicking here to prefill the SQL</a> in the SQL Editor, and then clicking **Run**.
+
+</Admonition>
+
+<Admonition type="note" title="Want to setup the database programmatically?">
+
+You can use [the Management API](/reference/api/v1-run-a-query) or ask [the MCP server](/guides/ai-tools/mcp#database) to execute SQL queries.
+
+</Admonition>
+
+
+
+```sql SQL_EDITOR
+-- Create the table
+create table instruments (
+  id bigint primary key generated always as identity,
+  name text not null
+);
+
+-- Insert sample data into the table
+insert into instruments (name)
+values
+  ('violin'),
+  ('viola'),
+  ('cello');
+
+-- Grant the privileges the role needs, which is read access
+grant select on public.instruments to anon;
+
+-- Enable row level security for the table
+alter table instruments enable row level security;
+
+-- Create a policy to allow the anon role to read from the instruments table
+create policy "public can read instruments"
+on public.instruments
+for select to anon
+using (true);
+```
+
+
+
+<Admonition type="note" label="Disabled the Data API during project setup?">
+
+If you disabled the Data API during project setup, enable it in the [**Integrations > Data API**](/dashboard/project/_/integrations/data_api/settings) section of the Dashboard and expose the specific tables or functions you want to access. To automatically grant access for new tables and functions in `public`, enable **Automatically expose new tables**.
+
+</Admonition>
+`
+     instead (it nests the project-creation partial). Guides that connect
+     directly to Postgres with their own ORM (Laravel, Rails, RedwoodJS, Spring
+     Boot) skip this and use `quickstart_create_project.mdx` alone — add a
+     one-line note stating the guide uses the framework's own tables instead, so
+     the omission reads as deliberate rather than a gap.
+2. **Create a `<framework>` app**
+3. **Set up AI tooling (optional)** — `Zuvo provides two ways to give AI tools context about your project: Agent Skills, which give your AI coding agent procedural knowledge, and the MCP server, which connects AI assistants to your Zuvo project directly.
+
+### Agent Skills
+
+[Agent Skills](/guides/ai-tools/ai-skills) is a curated set of instructions that give your AI agent procedural knowledge about working with Zuvo.
+
+Install them so your AI coding agent can produce more accurate, reliable code using current Zuvo patterns, such as authentication, server-side rendering, and database migrations, rather than relying solely on training data.
+
+#### Installing Agent Skills
+
+To install, run the following command in the root of your project:
+
+
+
+```bash
+npx skills add supabase/agent-skills
+```
+
+
+
+### Zuvo MCP server
+
+The Zuvo MCP server connects AI assistants to Zuvo, so they can inspect your schema and act on your projects on your behalf. Find out how to add it to your client in [the MCP docs](/guides/ai-tools/mcp).
+`.
+   Covers both Agent Skills and the MCP server in one step. Keep them together:
+   two adjacent optional AI steps push the first real Zuvo code further down
+   the page for no reader benefit, and the prose is identical across all 19 guides,
+   so it lives in the partial rather than being copied per guide.
+4. **Install the Zuvo client library**
+   - Guides that start from a scaffold which already depends on `supabase-js`
+     keep the step but retitle it to what the reader actually does. `hono.mdx`
+     uses **Install dependencies**, because `npx supabase bootstrap hono` already
+     lists the packages in `package.json` and the reader only runs `npm install`.
+     `nextjs.mdx` drops the step entirely, because the `with-supabase` template
+     installs them as part of step 3.
+5. **Declare Zuvo environment variables** — env vars only, never literal
+   credentials in code. Mobile guides (Flutter, iOS SwiftUI, Kotlin) are the
+   documented exception — they use `YOUR_SUPABASE_URL` / `YOUR_SUPABASE_PUBLISHABLE_KEY`
+   placeholder substitution instead of a `.env` file, with
+   `<Admonition type="note">
+
+This guide substitutes your project URL and key directly into the code above, rather than reading them from a `.env` file. Mobile apps don't get environment variables injected at runtime the way a bundler-based web app does. You'd need a build-time mechanism specific to your toolchain, such as `--dart-define-from-file` for Flutter, an `.xcconfig` file for iOS, or a `Gradle` `BuildConfig` field for Android. That's a good next step once you're past this quickstart, so your keys aren't committed to source control.
+
+</Admonition>
+` explaining why. Include the
+   `<Button>` "Open Connect panel" link and `### Get API details
+
+To interact with data in database tables, you use the client libraries that wrap [the auto-generated Data API endpoints](/guides/api), authenticating using the Project URL and key from [the project **Connect** dialog](/dashboard/project/\_?showConnect=true&connectTab=tab&framework=framework).
+
+
+
+
+<Admonition type="note">
+
+See [API keys](/guides/getting-started/api-keys) for a full explanation of all key types, their uses, and where to find them.
+
+</Admonition>
+`
+   (or, for direct-Postgres guides, `1. Navigate to your project dashboard and click on [Connect](/dashboard/project/_?showConnect=true&connectTab=direct&method=session).
+
+   <Admonition type="caution">
+
+   Don't use the Transaction pooler (port `6543`) as your app's main data source. Most ORMs rely on server-side prepared statements, which the Transaction pooler doesn't support. Use the Session pooler (port `5432`), or the direct connection string if you're in an [IPv6 environment](/guides/troubleshooting/supabase--your-network-ipv4-and-ipv6-compatibility-cHe3BP) or have the [IPv4 Add-On](/guides/platform/ipv4-address).
+
+   </Admonition>
+
+1. Look for the **Session pooler** connection string and copy it. Replace the password placeholder with your saved database password, and [percent-encode](https://en.wikipedia.org/wiki/Percent-encoding) any reserved characters it contains, such as `&`, `#`, `?`, or a space. If you don't have your database password, you can reset it in your [Database Settings](/dashboard/project/_/database/settings).
+
+1. Set `sslmode=require` either on the connection string itself or as an explicit config option if your framework sets it separately. Most drivers default to `prefer`, which falls back to sending your data in plaintext if the encrypted attempt fails. You can also [enforce SSL](/guides/platform/ssl-enforcement) on the database side.
+
+The connection strings below show the format only. Take the host, port, and username from the string you copied rather than typing the bracketed placeholders literally.
+`).
+6. **Create the Zuvo client** — its own step, not inlined into the query
+   sample. `reactjs.mdx`, `vue.mdx`, `solidjs.mdx`, and `sveltekit.mdx` export a
+   shared client from `src/lib/supabaseClient.*`; Nuxt uses a composable in
+   `app/composables/` because `useRuntimeConfig()` requires a Nuxt context.
+   - Guides whose scaffold already creates the client omit this step rather than
+     telling the reader to write a file that exists. `nextjs.mdx` (the
+     `with-supabase` template's `lib/supabase/{client,server}.ts`), `hono.mdx`
+     (`src/middleware/auth.middleware.ts`), and `refine.mdx` (the
+     `refine-supabase` preset's `src/providers/supabase-client.ts`) all do this.
+     When you omit it, say where the client lives at the point the query sample
+     first imports it. Otherwise the import arrives unexplained, and an agent
+     reading the page has no signal the file exists.
+7. **Query data from the app** — every inline query sample must handle the error
+   branch. `reactjs.mdx`'s `getInstruments` (destructure `error`, check it, log/render
+   before touching `data`) is the reference implementation; adapt to the language's
+   idiom (`try`/`catch` for Kotlin/Flask, `snapshot.hasError` for Flutter's
+   `FutureBuilder`, Solid's `resource.error`, etc.) rather than copying JS syntax
+   verbatim.
+   - If the guide's UI also writes, it must add the matching grants and RLS
+     policies before telling the reader to try them. `quickstart_db_setup.mdx`
+     grants `select` to `anon` only, so an insert or update through a Zuvo
+     client library fails with `permission denied for table instruments`.
+     `refine.mdx` (scaffolded create and edit pages) and `hono.mdx` (anonymous
+     sign-ins use the `authenticated` role) each carry their own policy step for
+     this reason. Guides that reach Postgres directly through their own ORM bypass
+     RLS and don't need one.
+
+8. **Start the app** — exact local URL and what the reader should see.
+9. **Production requirements** — `## Production requirements
+
+The quickstart procedure in this guide optimizes for getting you to a working app, not for production.
+
+Before you deploy:
+
+- If your app reads or writes through the Data API, review your [Row Level Security](/guides/database/postgres/row-level-security) policies. Any policy you added here is scoped to this quickstart's sample data, not to real user data.
+- Set your Zuvo credentials as environment variables on whatever platform you deploy to, rather than committing them to source control.
+- Configure a [custom domain](/guides/platform/custom-domains) for your Zuvo project once you're ready to go live.
+`,
+   which supplies the `##` heading itself, so don't add one in the host file. Every
+   guide gets this, immediately before Next steps. Its wording is deliberately neutral
+   about which tables the guide uses, so it stays true for both the `instruments`
+   guides and the direct-Postgres ones. `flutter.mdx` is the one guide that appends a
+   framework-specific `###` subsection under it, for the Android `INTERNET`
+   permission.
+10. **Next steps** — canonical order: framework-specific Auth pointer (or the
+    generic `Set up [Auth](/guides/auth) for your app` if there's no
+    framework-specific one) → Insert more data → Storage → Zuvo Library (`/ui`).
+    - Only link `/ui` from a framework Zuvo Library actually ships blocks for.
+      The supported list is `supportedFrameworks` in
+      `apps/ui-library/config/docs.ts`, currently Next.js, Nuxt, React, React
+      Router, TanStack, and Vue. Check it rather than assuming — Astro, SolidJS,
+      and SvelteKit are **not** supported, so those guides omit the link even
+      though they render a component-based frontend.
+    - `/ui` and `/ui/docs/*` are permanent redirects to `/library` and
+      `/library/docs/*`. Existing guides still link `/ui`; point new links at
+      `/library` directly, and use `/library/docs/<framework>/<block>` for
+      individual blocks.
+    - Also omit it from mobile-native and backend-only guides, and from RedwoodJS
+      and Refine, which ship their own component and Inferencer story.
+
+## Direct-Postgres guides (Laravel, Rails, RedwoodJS, Spring Boot)
+
+Use `1. Navigate to your project dashboard and click on [Connect](/dashboard/project/_?showConnect=true&connectTab=direct&method=session).
+
+   <Admonition type="caution">
+
+   Don't use the Transaction pooler (port `6543`) as your app's main data source. Most ORMs rely on server-side prepared statements, which the Transaction pooler doesn't support. Use the Session pooler (port `5432`), or the direct connection string if you're in an [IPv6 environment](/guides/troubleshooting/supabase--your-network-ipv4-and-ipv6-compatibility-cHe3BP) or have the [IPv4 Add-On](/guides/platform/ipv4-address).
+
+   </Admonition>
+
+1. Look for the **Session pooler** connection string and copy it. Replace the password placeholder with your saved database password, and [percent-encode](https://en.wikipedia.org/wiki/Percent-encoding) any reserved characters it contains, such as `&`, `#`, `?`, or a space. If you don't have your database password, you can reset it in your [Database Settings](/dashboard/project/_/database/settings).
+
+1. Set `sslmode=require` either on the connection string itself or as an explicit config option if your framework sets it separately. Most drivers default to `prefer`, which falls back to sending your data in plaintext if the encrypted attempt fails. You can also [enforce SSL](/guides/platform/ssl-enforcement) on the database side.
+
+The connection strings below show the format only. Take the host, port, and username from the string you copied rather than typing the bracketed placeholders literally.
+` for the session-pooler
+rationale, IPv6/IPv4 note, percent-encoding, and `sslmode` guidance. Laravel, Rails,
+and Spring Boot all use it. Keep the actual connection-string code block in the host
+file — the URI format differs (`postgres://` vs `jdbc:postgresql://`).
+
+RedwoodJS is the exception and doesn't use the partial: Prisma needs a Transaction-mode
+string for app queries and a Session-mode string for migrations, so the guide walks
+through both connection modes itself rather than the single session-pooler string the
+partial describes.
+
+## Discovery surfaces
+
+A new quickstart must appear in the navigation menu, and optionally in the content
+listing and the framework grid:
+
+- `apps/docs/components/Navigation/NavigationMenu/NavigationMenu.constants.ts` — required
+- `apps/docs/data/content-listings/getting-started.data.ts` — optional
+- `apps/docs/components/FrameworkQuickstarts.tsx` — optional
+
+Both optional surfaces need an icon in `apps/docs/public/img/icons/`, so a guide stays
+out of them until the framework's icon is one Zuvo can use. Spring Boot is the
+current example. The content listing also accepts an icon chip
+(`{ kind: 'server', color: '#64748B', bg: 'rgba(100,116,139,0.1)' }`) in place of a
+brand icon.
+
+Icons must be square and readable on both themes. `FrameworkQuickstarts.tsx` renders
+them at a fixed width in a `bg-surface-100` tile, so a wide wordmark renders small and
+an icon with no explicit `fill` defaults to black and disappears in dark mode. Set the
+brand color explicitly, and pad the `viewBox` to a square if the source asset isn't
+one. Icons that ship a `-light.svg` variant set `hasLightIcon: true`, which uses the
+light file in light mode and the base file in dark mode.
+
+## What's deliberately not in this contract yet
+
+- A machine-checked version of this list (Phase 3 — a `supa-mdx-lint` rule or a
+  vitest over the MDX AST).
+- A "last verified" date, pinned framework versions, or a time-to-value label per
+  guide (Phase 4).

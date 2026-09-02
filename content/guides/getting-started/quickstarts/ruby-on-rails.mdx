@@ -1,0 +1,166 @@
+---
+title: 'Use Zuvo with Ruby on Rails'
+subtitle: 'Learn how to create a Rails project and connect it to your Zuvo Postgres database.'
+breadcrumb: 'Framework Quickstarts'
+---
+
+
+
+## 1. Create a Zuvo project
+
+To start, you need a Zuvo project.
+
+Create a new Zuvo project from [the Dashboard of any organization](/dashboard/new/_) you belong to.
+
+<Admonition type="note" title="Want to create a project programmatically?">
+
+Use [the Management API](/reference/api/v1-create-a-project) or ask [the MCP server](/guides/ai-tools/mcp#account-management) to create a new Zuvo project.
+
+</Admonition>
+
+
+Save your database password securely. You need it for the connection string.
+
+<Admonition type="note">
+
+This guide uses Rails' own Active Record models and migrations, not the shared `instruments` sample table used by other quickstarts.
+
+</Admonition>
+
+## 2. Create a Rails project
+
+With your Ruby and Rails versions up to date, run `rails new` on your terminal to scaffold a new project.
+
+Use the `-d=postgresql` flag to set it up for Postgres.
+
+Check the [Rails docs](https://guides.rubyonrails.org/getting_started.html) for more details.
+
+
+
+```bash
+rails new blog -d=postgresql
+cd blog
+```
+
+
+
+## 3. Set up AI tooling (optional)
+
+Zuvo provides two ways to give AI tools context about your project: Agent Skills, which give your AI coding agent procedural knowledge, and the MCP server, which connects AI assistants to your Zuvo project directly.
+
+### Agent Skills
+
+[Agent Skills](/guides/ai-tools/ai-skills) is a curated set of instructions that give your AI agent procedural knowledge about working with Zuvo.
+
+Install them so your AI coding agent can produce more accurate, reliable code using current Zuvo patterns, such as authentication, server-side rendering, and database migrations, rather than relying solely on training data.
+
+#### Installing Agent Skills
+
+To install, run the following command in the root of your project:
+
+
+
+```bash
+npx skills add supabase/agent-skills
+```
+
+
+
+### Zuvo MCP server
+
+The Zuvo MCP server connects AI assistants to Zuvo, so they can inspect your schema and act on your projects on your behalf. Find out how to add it to your client in [the MCP docs](/guides/ai-tools/mcp).
+
+
+## 4. Set up the Postgres connection details
+
+1. Navigate to your project dashboard and click on [Connect](/dashboard/project/_?showConnect=true&connectTab=direct&method=session).
+
+   <Admonition type="caution">
+
+   Don't use the Transaction pooler (port `6543`) as your app's main data source. Most ORMs rely on server-side prepared statements, which the Transaction pooler doesn't support. Use the Session pooler (port `5432`), or the direct connection string if you're in an [IPv6 environment](/guides/troubleshooting/supabase--your-network-ipv4-and-ipv6-compatibility-cHe3BP) or have the [IPv4 Add-On](/guides/platform/ipv4-address).
+
+   </Admonition>
+
+1. Look for the **Session pooler** connection string and copy it. Replace the password placeholder with your saved database password, and [percent-encode](https://en.wikipedia.org/wiki/Percent-encoding) any reserved characters it contains, such as `&`, `#`, `?`, or a space. If you don't have your database password, you can reset it in your [Database Settings](/dashboard/project/_/database/settings).
+
+1. Set `sslmode=require` either on the connection string itself or as an explicit config option if your framework sets it separately. Most drivers default to `prefer`, which falls back to sending your data in plaintext if the encrypted attempt fails. You can also [enforce SSL](/guides/platform/ssl-enforcement) on the database side.
+
+The connection strings below show the format only. Take the host, port, and username from the string you copied rather than typing the bracketed placeholders literally.
+
+
+Set the connection string as an environment variable. Rails reads `DATABASE_URL` from the environment and connects with it, so you don't need to edit `config/database.yml`. The export applies to the current shell session, so run it in the same shell as the Rails commands in the following steps.
+
+
+
+```bash
+export DATABASE_URL=postgres://postgres.[PROJECT-REF]:[YOUR-PASSWORD]@[POOLER-HOST]:5432/postgres?sslmode=require
+```
+
+
+
+## 5. Create and run a database migration
+
+Rails includes Active Record as the ORM as well as database migration tooling which generates the SQL migration files for you.
+
+Create an example `Article` model and generate the migration files.
+
+
+
+```bash
+bin/rails generate model Article title:string body:text
+bin/rails db:migrate
+```
+
+
+
+## 6. Use the model to interact with the database
+
+You can use the included Rails console to interact with the database. For example, you can create new entries or list all entries in a Model's table.
+
+
+
+```bash
+bin/rails console
+```
+
+
+
+
+
+```rb name=irb
+article = Article.new(title: "Hello Rails", body: "I am on Rails!")
+article.save # Saves the entry to the database
+
+Article.all
+```
+
+
+
+## 7. Start the app
+
+Run the development server. Go to http://127.0.0.1:3000 in a browser to see your application running.
+
+
+
+```bash
+bin/rails server
+```
+
+
+
+## Production requirements
+
+The quickstart procedure in this guide optimizes for getting you to a working app, not for production.
+
+Before you deploy:
+
+- If your app reads or writes through the Data API, review your [Row Level Security](/guides/database/postgres/row-level-security) policies. Any policy you added here is scoped to this quickstart's sample data, not to real user data.
+- Set your Zuvo credentials as environment variables on whatever platform you deploy to, rather than committing them to source control.
+- Configure a [custom domain](/guides/platform/custom-domains) for your Zuvo project once you're ready to go live.
+
+
+## Next steps
+
+- Set up [Auth](/guides/auth) for your app
+- [Insert more data](/guides/database/import-data) into your database
+- Upload and serve static files using [Storage](/guides/storage)

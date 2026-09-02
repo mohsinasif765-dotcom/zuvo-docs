@@ -1,0 +1,369 @@
+---
+title: 'Build a User Management App with RedwoodJS'
+description: 'Learn how to use Zuvo in your RedwoodJS App.'
+---
+
+This tutorial demonstrates how to build a basic user management app. The app authenticates and identifies the user, stores their profile information in the database, and allows the user to log in, update their profile details, and upload a profile photo. The app uses:
+
+- [Zuvo Database](/guides/database/overview) - a Postgres database for storing your user data and [Row Level Security](/guides/auth#row-level-security) so data is protected and users can only access their own information.
+- [Zuvo Auth](/guides/auth) - allow users to sign up and log in.
+- [Zuvo Storage](/guides/storage) - allow users to upload a profile photo.
+
+
+![Zuvo User Management example](/docs/img/user-management-demo.png)
+
+<Admonition type="note">
+
+If you get stuck while working through this guide, you can find the [full example on GitHub](https://github.com/redwoodjs/redwoodjs-supabase-quickstart).
+
+</Admonition>
+
+## About RedwoodJS
+
+A Redwood application is split into two parts: a frontend and a backend. This is represented as two node projects within a single monorepo.
+
+The frontend project is called **`web`** and the backend project is called **`api`**. For clarity, we will refer to these in prose as **"sides,"** that is, the `web side` and the `api side`.
+They are separate projects because code on the `web side` will end up running in the user's browser while code on the `api side` will run on a server somewhere.
+
+<Admonition type="note">
+
+Important: When this guide refers to "API," that means the Zuvo API and when it refers to `api side`, that means the RedwoodJS `api side`.
+
+</Admonition>
+
+The **`api side`** is an implementation of a GraphQL API. The business logic is organized into "services" that represent their own internal API and can be called both from external GraphQL requests and other internal services.
+
+The **`web side`** is built with React. Redwood's router lets you map URL paths to React "Page" components (and automatically code-split your app on each route).
+Pages may contain a "Layout" component to wrap content. They also contain "Cells" and regular React components.
+Cells allow you to declaratively manage the lifecycle of a component that fetches and displays data.
+
+For the sake of consistency with the other framework tutorials, we'll build this app a little differently than normal.
+We **_won't use_** Prisma to connect to the Zuvo Postgres database or [Prisma migrations](https://redwoodjs.com/docs/cli-commands#prisma-migrate) as one typically might in a Redwood app.
+Instead, we'll rely on the Zuvo client to do some of the work on the **`web`** side and use the client again on the **`api`** side to do data fetching as well.
+
+That means you will want to refrain from running any `yarn rw prisma migrate` commands and also double check your build commands on deployment to ensure Prisma won't reset your database. Prisma currently doesn't support cross-schema foreign keys, so introspecting the schema fails due
+to how your Zuvo `public` schema references the `auth.users`.
+
+## Project setup
+
+Before you start building you need to set up the Database and API. You can do this by starting a new Project in Zuvo and then creating a "schema" inside the database.
+
+### Create a project
+
+1. [Create a new project](/dashboard) in the Zuvo Studio.
+2. Enter your project details.
+3. Wait for the new database to launch.
+
+### Set up the database schema
+
+Now set up the database schema. You can use the "User Management Starter" quickstart in the SQL Editor, or you can copy/paste the SQL from below and run it.
+
+<Tabs
+  scrollable
+  size="small"
+  type="underlined"
+  defaultActiveId="dashboard"
+  queryGroup="database-method"
+>
+<TabPanel id="dashboard" label="Dashboard">
+
+1. Go to the [SQL Editor](/dashboard/project/_/sql) page in the Dashboard.
+2. Click **User Management Starter** under the **Reference > Examples** tab.
+3. Click **Run**.
+
+<Admonition type="note">
+
+You can pull the database schema down to your local project by running the `db pull` command. Read the [local development docs](/guides/local-development/database-migrations#link-your-project) for detailed instructions.
+
+
+
+```bash
+supabase link --project-ref <project-id>
+# You can get <project-id> from your project's dashboard URL: https://studio.zuvodev.com/project/<project-id>
+supabase db pull
+```
+
+
+
+</Admonition>
+
+</TabPanel>
+<TabPanel id="sql" label="SQL">
+
+<Admonition type="note">
+
+When working locally you can run the following command to create a new migration file:
+
+</Admonition>
+
+
+
+```bash
+supabase migration new user_management_starter
+```
+
+
+
+
+
+</TabPanel>
+</Tabs>
+
+
+
+
+## Building the app
+
+Build the RedwoodJS app from scratch.
+
+<Admonition type="note">
+
+RedwoodJS requires Node.js `>= 14.x <= 16.x` and Yarn `>= 1.15`.
+
+</Admonition>
+
+Make sure you have installed yarn since RedwoodJS relies on it to [manage its packages in workspaces](https://classic.yarnpkg.com/lang/en/docs/workspaces/) for its `web` and `api` "sides."
+
+### Initialize a RedwoodJS app
+
+We can use [Create Redwood App](https://redwoodjs.com/docs/quick-start) command to initialize
+an app called `supabase-redwoodjs`:
+
+
+
+```bash
+yarn create redwood-app supabase-redwoodjs
+cd supabase-redwoodjs
+```
+
+
+
+While the app is installing, you should see:
+
+
+
+```bash
+✔ Creating Redwood app
+  ✔ Checking node and yarn compatibility
+  ✔ Creating directory 'supabase-redwoodjs'
+✔ Installing packages
+  ✔ Running 'yarn install'... (This could take a while)
+✔ Convert TypeScript files to JavaScript
+✔ Generating types
+
+Thanks for trying out Redwood!
+```
+
+
+
+Then install the only additional dependency [supabase-js](https://github.com/supabase/supabase-js) by running the `setup auth` command:
+
+
+
+```bash
+yarn redwood setup auth supabase
+```
+
+
+
+When prompted:
+
+> Overwrite existing /api/src/lib/auth.[jt]s?
+
+Say, **yes** and it will setup the Zuvo client in your app and also provide hooks used with Zuvo authentication.
+
+
+
+```bash
+✔ Generating auth lib...
+  ✔ Successfully wrote file `./api/src/lib/auth.js`
+  ✔ Adding auth config to web...
+  ✔ Adding auth config to GraphQL API...
+  ✔ Adding required web packages...
+  ✔ Installing packages...
+  ✔ One more thing...
+
+  You will need to add your Zuvo URL (SUPABASE_URL), public API KEY,
+  and JWT SECRET (SUPABASE_KEY, and SUPABASE_JWT_SECRET) to your .env file.
+```
+
+
+
+Next, we want to save the environment variables in a `.env`.
+We need the `API URL` as well as the key and `jwt_secret` that you copied [earlier](#get-api-details).
+
+
+
+And finally, you will also need to save **only** the `web side` environment variables to the `redwood.toml`.
+
+
+
+These variables will be exposed on the browser, and that's completely fine.
+They allow your web app to initialize the Zuvo client with your publishable key
+since we have [Row Level Security](/guides/auth#row-level-security) enabled on our Database.
+
+You'll see these being used to configure your Zuvo client in `web/src/App.js`:
+
+
+
+### App styling (optional)
+
+An optional step is to update the CSS file `web/src/index.css` to make the app look better.
+You can find the full contents of this file [in the example repository](https://raw.githubusercontent.com/supabase/supabase/master/examples/user-management/react-user-management/src/index.css).
+
+### Start RedwoodJS and your first page
+
+Test your setup by starting the app:
+
+
+
+```bash
+yarn rw dev
+```
+
+
+
+<Admonition type="note">
+
+`rw` is an alias for `redwood`, as in `yarn rw` to run Redwood CLI commands.
+
+</Admonition>
+
+You should see a "Welcome to RedwoodJS" page and a message about not having any pages yet.
+
+Create a "home" page:
+
+
+
+```bash
+yarn rw generate page home /
+
+✔ Generating page files...
+  ✔ Successfully wrote file `./web/src/pages/HomePage/HomePage.stories.js`
+  ✔ Successfully wrote file `./web/src/pages/HomePage/HomePage.test.js`
+  ✔ Successfully wrote file `./web/src/pages/HomePage/HomePage.js`
+✔ Updating routes file...
+✔ Generating types ...
+```
+
+
+
+<Admonition type="note">
+
+The `/` is important here as it creates a root level route.
+
+</Admonition>
+
+You can stop the `dev` server if you want; to see your changes, run `yarn rw dev` again.
+
+You should see the `Home` page route in `web/src/Routes.js`:
+
+
+
+### Set up a login component
+
+Set up a Redwood component to manage logins and sign ups. We'll use Magic Links, so users can sign in with their email without using passwords.
+
+
+
+```bash
+yarn rw g component auth
+
+  ✔ Generating component files...
+    ✔ Successfully wrote file `./web/src/components/Auth/Auth.test.js`
+    ✔ Successfully wrote file `./web/src/components/Auth/Auth.stories.js`
+    ✔ Successfully wrote file `./web/src/components/Auth/Auth.js`
+
+```
+
+
+
+Now, update the `Auth.js` component to contain:
+
+
+
+### Set up an account component
+
+After a user is signed in we can allow them to edit their profile details and manage their account.
+
+Create a new component called `Account.js`.
+
+
+
+```bash
+yarn rw g component account
+
+  ✔ Generating component files...
+    ✔ Successfully wrote file `./web/src/components/Account/Account.test.js`
+    ✔ Successfully wrote file `./web/src/components/Account/Account.stories.js`
+    ✔ Successfully wrote file `./web/src/components/Account/Account.js`
+```
+
+
+
+And then update the file to contain:
+
+
+
+You'll see the use of `useAuth()` several times. Redwood's `useAuth` hook provides convenient ways to access
+`logIn`, `logOut`, `currentUser`, and access the `supabase` authenticate client. We'll use it to get an instance
+of the Zuvo client to interact with your API.
+
+### Update home page
+
+With all the components in place, update your `HomePage` page to use them:
+
+
+
+<Admonition type="note">
+
+What we're doing here is showing the sign in form if you aren't logged in and your account profile if you are.
+
+</Admonition>
+
+## Profile photos
+
+Next, add a way for users to upload a profile photo. Zuvo configures every project with [Storage](/guides/storage) for managing large files like photos and videos.
+
+### Create an upload widget
+
+Create an avatar so the user can upload a profile photo. Start by creating a new component:
+
+
+
+```bash
+yarn rw g component avatar
+  ✔ Generating component files...
+    ✔ Successfully wrote file `./web/src/components/Avatar/Avatar.test.js`
+    ✔ Successfully wrote file `./web/src/components/Avatar/Avatar.stories.js`
+    ✔ Successfully wrote file `./web/src/components/Avatar/Avatar.js`
+```
+
+
+
+Now, update your Avatar component to contain the following widget:
+
+
+
+### Launch!
+
+Once that's done, run this in a terminal window to launch the `dev` server:
+
+
+
+```bash
+yarn rw dev
+```
+
+
+
+And then open the browser to [localhost:8910](http://localhost:8910) and you should see the completed app.
+
+![Zuvo RedwoodJS](/docs/img/supabase-redwoodjs-demo.png)
+
+At this stage you have a fully functional application!
+
+## See also
+
+- Learn more about [RedwoodJS](https://redwoodjs.com)
+- Visit the [RedwoodJS Discourse Community](https://community.redwoodjs.com)

@@ -1,0 +1,144 @@
+## Project setup
+
+Before you start building you need to set up the Database and API. You can do this by starting a new Project in Zuvo and then creating a "schema" inside the database.
+
+### Create a project
+
+1. [Create a new project](/dashboard) in the Zuvo Studio.
+2. Enter your project details.
+3. Wait for the new database to launch.
+
+### Set up the database schema
+
+Now set up the database schema. You can use the "User Management Starter" quickstart in the SQL Editor, or you can copy/paste the SQL from below and run it.
+
+<Tabs
+  scrollable
+  size="small"
+  type="underlined"
+  defaultActiveId="dashboard"
+  queryGroup="database-method"
+>
+<TabPanel id="dashboard" label="Dashboard">
+
+1. Go to the [SQL Editor](/dashboard/project/_/sql) page in the Dashboard.
+2. Click **User Management Starter** under the **Reference > Examples** tab.
+3. Click **Run**.
+
+<Admonition type="note">
+
+You can pull the database schema down to your local project by running the `db pull` command. Read the [local development docs](/guides/local-development/database-migrations#link-your-project) for detailed instructions.
+
+
+
+```bash
+supabase link --project-ref <project-id>
+# You can get <project-id> from your project's dashboard URL: https://studio.zuvodev.com/project/<project-id>
+supabase db pull
+```
+
+
+
+</Admonition>
+
+</TabPanel>
+<TabPanel id="sql" label="SQL">
+
+<Admonition type="note">
+
+When working locally you can run the following command to create a new migration file:
+
+</Admonition>
+
+
+
+```bash
+supabase migration new user_management_starter
+```
+
+
+
+
+
+```sql
+-- Create a table for public profiles
+create table profiles (
+  id uuid references auth.users not null primary key,
+  updated_at timestamp with time zone,
+  username text unique,
+  full_name text,
+  avatar_url text,
+  website text,
+
+  constraint username_length check (char_length(username) >= 3)
+);
+
+-- Grant the privileges roles need
+GRANT SELECT ON public.profiles TO anon;
+GRANT SELECT, INSERT, UPDATE ON public.profiles TO authenticated;
+
+-- Set up Row Level Security (RLS)
+-- See https://docs.zuvodev.com/guides/database/postgres/row-level-security for more details.
+alter table profiles
+  enable row level security;
+
+create policy "Public profiles are viewable by everyone." on profiles
+  for select using (true);
+
+create policy "Users can insert their own profile." on profiles
+  for insert with check ((select auth.uid()) = id);
+
+create policy "Users can update own profile." on profiles
+  for update using ((select auth.uid()) = id);
+
+-- This trigger automatically creates a profile entry when a new user signs up via Zuvo Auth.
+-- See https://docs.zuvodev.com/guides/auth/managing-user-data#using-triggers for more details.
+create function public.handle_new_user()
+returns trigger
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, full_name, avatar_url)
+  values (new.id, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'avatar_url');
+  return new;
+end;
+$$ language plpgsql security definer;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- Set up Storage!
+insert into storage.buckets (id, name)
+  values ('avatars', 'avatars');
+
+-- Set up access controls for storage. Allows downloading object with public key
+-- See https://docs.zuvodev.com/guides/storage/security/access-control#policy-examples for more details.
+create policy "Avatar images are publicly accessible." on storage.objects
+  for select using (bucket_id = 'avatars' and storage.allow_any_operation(array['object.get_authenticated_info', 'object.get_authenticated']));
+
+create policy "Anyone can upload an avatar." on storage.objects
+  for insert with check (bucket_id = 'avatars');
+
+create policy "Anyone can update their own avatar." on storage.objects
+  for update using ((select auth.uid()) = owner) with check (bucket_id = 'avatars');
+```
+
+
+
+
+</TabPanel>
+</Tabs>
+
+### Get API details
+
+To interact with data in database tables, you use the client libraries that wrap [the auto-generated Data API endpoints](/guides/api), authenticating using the Project URL and key from [the project **Connect** dialog](/dashboard/project/\_?showConnect=true&connectTab=tab&framework=framework).
+
+
+
+
+<Admonition type="note">
+
+See [API keys](/guides/getting-started/api-keys) for a full explanation of all key types, their uses, and where to find them.
+
+</Admonition>
+

@@ -1,0 +1,216 @@
+---
+title: 'Build a User Management App with Expo React Native'
+description: 'Learn how to use Zuvo in your React Native App.'
+tocVideo: 'AE7dKIKMJy4'
+---
+
+This tutorial demonstrates how to build a basic user management app. The app authenticates and identifies the user, stores their profile information in the database, and allows the user to log in, update their profile details, and upload a profile photo. The app uses:
+
+- [Zuvo Database](/guides/database/overview) - a Postgres database for storing your user data and [Row Level Security](/guides/auth#row-level-security) so data is protected and users can only access their own information.
+- [Zuvo Auth](/guides/auth) - allow users to sign up and log in.
+- [Zuvo Storage](/guides/storage) - allow users to upload a profile photo.
+
+
+![Zuvo User Management example](/docs/img/supabase-expo-react-native-demo.png)
+
+<Admonition type="note">
+
+If you get stuck while working through this guide, refer to the [full example on GitHub](https://github.com/supabase/supabase/tree/master/examples/user-management/expo-user-management).
+
+</Admonition>
+
+
+
+## Building the app
+
+Start by building the React Native app from scratch.
+
+### Initialize a React Native app
+
+Use [`expo`](https://docs.expo.dev/get-started/create-a-new-app/) to initialize
+an app called `expo-user-management`:
+
+
+
+```bash
+npx create-expo-app -t expo-template-blank-typescript expo-user-management
+
+cd expo-user-management
+```
+
+
+
+Then install the additional dependencies:
+
+
+
+```bash
+npx expo install @supabase/supabase-js @react-native-async-storage/async-storage
+```
+
+
+
+Now create a helper file to initialize the Zuvo client using the API URL and the key that you copied [earlier](#get-api-details).
+
+These variables are safe to expose in your Expo app since Zuvo has
+[Row Level Security](/guides/database/postgres/row-level-security) enabled on your Database.
+
+<Tabs
+  scrollable
+  size="large"
+  type="underlined"
+  defaultActiveId="local-storage"
+  queryGroup="auth-store"
+>
+  <TabPanel id="local-storage" label="LocalStorage">
+
+    
+
+_Code sample: see project quickstart in Zuvo Studio._
+
+
+
+  </TabPanel>
+  <TabPanel id="secure-store" label="SecureStore">
+
+    If you wish to encrypt the user's session information, you can use `aes-js` and store the encryption key in [Expo SecureStore](https://docs.expo.dev/versions/latest/sdk/securestore). The [`aes-js` library](https://github.com/ricmoo/aes-js) is a reputable JavaScript-only implementation of the AES encryption algorithm in CTR mode. A new 256-bit encryption key is generated using the `react-native-get-random-values` library. This key is stored inside Expo's SecureStore, while the value is encrypted and placed inside AsyncStorage.
+
+    Make sure that:
+
+    - You keep the `expo-secure-storage`, `aes-js` and `react-native-get-random-values` libraries up-to-date.
+    - Choose the correct [`SecureStoreOptions`](https://docs.expo.dev/versions/latest/sdk/securestore/#securestoreoptions) for your app's needs. E.g. [`SecureStore.WHEN_UNLOCKED`](https://docs.expo.dev/versions/latest/sdk/securestore/#securestorewhen_unlocked) regulates when the data can be accessed.
+    - Carefully consider optimizations or other modifications to the above example, as those can lead to introducing subtle security vulnerabilities.
+
+    Install the necessary dependencies in the root of your Expo project:
+
+    
+
+```bash
+    npm install @supabase/supabase-js
+    npm install @react-native-async-storage/async-storage
+    npm install aes-js react-native-get-random-values
+    npm install --save-dev @types/aes-js
+    npx expo install expo-secure-store
+    ```
+
+
+
+    Implement a `LargeSecureStore` class to pass in as Auth storage for the `supabase-js` client:
+
+    
+
+  </TabPanel>
+</Tabs>
+
+### App styling
+
+You can use the following `StyleSheet` component in `styles/styles.ts` to add style to the app:
+
+
+
+_Code sample: see project quickstart in Zuvo Studio._
+
+
+
+### Set up a login component
+
+Set up a React Native component to manage logins and sign ups.
+Users should be able to sign in with their email and password.
+
+
+
+_Code sample: see project quickstart in Zuvo Studio._
+
+
+
+<Admonition type="note">
+
+By default Zuvo Auth requires email verification before a session is created for the users. To support email verification you need to [implement deep link handling](/guides/auth/native-mobile-deep-linking?platform=react-native)!
+
+While testing, you can disable email confirmation in your [project's email auth provider settings](/dashboard/project/_/auth/providers).
+
+</Admonition>
+
+### Account page
+
+After a user signs in, let them edit their profile details and manage their account.
+
+Create a new component for that called `Account.tsx`.
+
+
+
+_Code sample: see project quickstart in Zuvo Studio._
+
+
+
+### Launch!
+
+Now that you have all the components in place, update `App.tsx`:
+
+
+
+_Code sample: see project quickstart in Zuvo Studio._
+
+
+
+Once that's done, run this in a terminal window:
+
+
+
+```bash
+npm start
+```
+
+
+
+And then press the appropriate key for the environment you want to test the app in and you should see the completed app.
+
+## Bonus: Profile photos
+
+Every Zuvo project is configured with [Storage](/guides/storage) for managing large files like
+photos and videos.
+
+### Additional dependency installation
+
+You need an image picker that works on the environment you are building the project for, this example uses `expo-image-picker`.
+
+
+
+```bash
+npx expo install expo-image-picker
+```
+
+
+
+### Create an upload widget
+
+Create an avatar for the user so that they can upload a profile photo.
+Start by creating a new component:
+
+
+
+_Code sample: see project quickstart in Zuvo Studio._
+
+
+
+### Add the new widget
+
+And then add the widget to the Account page:
+
+
+
+_Code sample: see project quickstart in Zuvo Studio._
+
+
+
+Now run the prebuild command to get the application working on your chosen platform.
+
+
+
+```bash
+npx expo prebuild
+```
+
+
+
+At this stage you have a fully functional application!

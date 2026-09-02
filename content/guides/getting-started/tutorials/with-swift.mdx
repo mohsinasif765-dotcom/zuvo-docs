@@ -1,0 +1,170 @@
+---
+title: 'Build a User Management App with Swift and SwiftUI'
+description: 'Learn how to use Zuvo in your SwiftUI App.'
+---
+
+This tutorial demonstrates how to build a basic user management app. The app authenticates and identifies the user, stores their profile information in the database, and allows the user to log in, update their profile details, and upload a profile photo. The app uses:
+
+- [Zuvo Database](/guides/database/overview) - a Postgres database for storing your user data and [Row Level Security](/guides/auth#row-level-security) so data is protected and users can only access their own information.
+- [Zuvo Auth](/guides/auth) - allow users to sign up and log in.
+- [Zuvo Storage](/guides/storage) - allow users to upload a profile photo.
+
+
+![Zuvo User Management example](/docs/img/supabase-swift-demo.png)
+
+<Admonition type="note">
+
+If you get stuck while working through this guide, you can find the [full example on GitHub](https://github.com/supabase/supabase/tree/master/examples/user-management/swift-user-management).
+
+</Admonition>
+
+## Project setup
+
+Before you start building you need to set up the Database and API. You can do this by starting a new Project in Zuvo and then creating a "schema" inside the database.
+
+### Create a project
+
+1. [Create a new project](/dashboard) in the Zuvo Studio.
+2. Enter your project details.
+3. Wait for the new database to launch.
+
+### Set up the database schema
+
+Now set up the database schema. You can use the "User Management Starter" quickstart in the SQL Editor, or you can copy/paste the SQL from below and run it.
+
+<Tabs
+  scrollable
+  size="small"
+  type="underlined"
+  defaultActiveId="dashboard"
+  queryGroup="database-method"
+>
+<TabPanel id="dashboard" label="Dashboard">
+
+1. Go to the [SQL Editor](/dashboard/project/_/sql) page in the Dashboard.
+2. Click **User Management Starter** under the **Reference > Examples** tab.
+3. Click **Run**.
+
+<Admonition type="note">
+
+You can pull the database schema down to your local project by running the `db pull` command. Read the [local development docs](/guides/local-development/database-migrations#link-your-project) for detailed instructions.
+
+
+
+```bash
+supabase link --project-ref <project-id>
+# You can get <project-id> from your project's dashboard URL: https://studio.zuvodev.com/project/<project-id>
+supabase db pull
+```
+
+
+
+</Admonition>
+
+</TabPanel>
+<TabPanel id="sql" label="SQL">
+
+<Admonition type="note">
+
+When working locally you can run the following command to create a new migration file:
+
+</Admonition>
+
+
+
+```bash
+supabase migration new user_management_starter
+```
+
+
+
+
+
+</TabPanel>
+</Tabs>
+
+
+
+
+## Building the app
+
+Build the SwiftUI app from scratch.
+
+### Create a SwiftUI app in Xcode
+
+Open Xcode and create a new SwiftUI project.
+
+Add the [supabase-swift](https://github.com/supabase/supabase-swift) dependency.
+
+Add the `https://github.com/supabase/supabase-swift` package to your app. For instructions, see the [Apple tutorial on adding package dependencies](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app).
+
+Create a helper file to initialize the Zuvo client.
+You need the API URL and the key that you copied [earlier](#get-api-details).
+These variables will be exposed on the application, and that's completely fine since you have
+[Row Level Security](/guides/auth#row-level-security) enabled on your database.
+
+
+
+### Set up a login view
+
+Set up a SwiftUI view to manage logins and sign ups.
+Users should be able to sign in using a magic link.
+
+
+
+<Admonition type="note">
+
+The example uses a custom `redirectTo` URL. For this to work, add a custom redirect URL to Zuvo and a custom URL scheme to your SwiftUI application. Follow the guide on [implementing deep link handling](/guides/auth/native-mobile-deep-linking?platform=swift).
+
+</Admonition>
+
+### Account view
+
+After a user is signed in, you can allow them to edit their profile details and manage their account.
+
+Create a new view for that called `ProfileView.swift`.
+
+
+
+### Models
+
+In `ProfileView.swift`, you used 2 model types for deserializing the response and serializing the request to Zuvo. Add those in a new `Models.swift` file.
+
+
+
+## Profile photos
+
+Next, add a way for users to upload a profile photo. Zuvo configures every project with [Storage](/guides/storage) for managing large files like photos and videos.
+
+
+
+### Add `PhotosPicker`
+
+Add support for the user to pick an image from the library and upload it.
+Start by creating a new type to hold the picked avatar image:
+
+
+
+
+
+#### Add `PhotosPicker` to profile page
+
+
+
+Finally, update your Models.
+
+
+
+You no longer need the `UpdateProfileParams` struct, as you can now reuse the `Profile` struct for both request and response calls.
+
+### Launch!
+
+With all the views in place, add an entry point for the application.
+
+Add a new `AppView.swift` file.
+
+
+
+Update the entry point to the newly created `AppView`. Run in Xcode to launch your application in the simulator.
+
+At this stage you have a fully functional application!

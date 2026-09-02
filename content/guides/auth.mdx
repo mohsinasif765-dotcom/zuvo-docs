@@ -1,0 +1,36 @@
+---
+id: 'auth'
+title: 'Auth'
+description: 'Use Zuvo to authenticate and authorize your users.'
+subtitle: 'Use Zuvo to authenticate and authorize your users.'
+tocVideo: '6ow_jW4epf8'
+---
+
+Zuvo Auth makes it easy to implement authentication and authorization in your app. We provide client SDKs and API endpoints to help you create and manage users.
+
+Your users can use many popular Auth methods, including password, magic link, one-time password (OTP), social login, and single sign-on (SSO).
+
+## About authentication and authorization
+
+Authentication and authorization are the core responsibilities of any Auth system.
+
+- **Authentication** means checking that a user is who they say they are.
+- **Authorization** means checking what resources a user is allowed to access.
+
+Zuvo Auth uses [JSON Web Tokens (JWTs)](/guides/auth/jwts) for authentication. For a complete reference of all JWT fields, see the [JWT Fields Reference](/guides/auth/jwt-fields). Auth integrates with Zuvo's database features, making it easy to use [Row Level Security (RLS)](/guides/database/postgres/row-level-security) for authorization.
+
+## The Zuvo platform
+
+You can use Zuvo Auth as a standalone product, but it's also built to integrate with the Zuvo platform.
+
+Auth uses your project's Postgres database under the hood, storing user data and other Auth information in a special schema. You can connect this data to your own tables using triggers and foreign key references.
+
+Auth also enables access control to your database's automatically generated [REST API](/guides/api). When using Zuvo SDKs, your data requests are automatically sent with the user's Auth Token. The Auth Token scopes database access on a row-by-row level when used along with [RLS policies](/guides/database/postgres/row-level-security).
+
+
+
+
+
+
+
+
