@@ -24,6 +24,10 @@ export const metadata: Metadata = {
   description:
     "Guides for Zuvo — Postgres backends with auth, storage, realtime, edge functions, and hosting.",
   applicationName: "Zuvo Docs",
+  icons: {
+    icon: [{ url: "/favicon.ico", sizes: "any" }],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
